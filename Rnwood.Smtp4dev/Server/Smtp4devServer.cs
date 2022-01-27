@@ -174,7 +174,38 @@ namespace Rnwood.Smtp4dev.Server
 
         private Task OnAuthenticationCredentialsValidationRequired(object sender, AuthenticationCredentialsValidationEventArgs e)
         {
-            e.AuthenticationResult = AuthenticationResult.Success;
+            if(e.Credentials is Rnwood.SmtpServer.Extensions.Auth.CramMd5AuthenticationCredentials cram)
+            {
+                if(cram.ValidateResponse("SomeSecret"))
+                {
+                    e.AuthenticationResult = AuthenticationResult.Success;
+                } else
+                {
+                    e.AuthenticationResult = AuthenticationResult.Failure;
+                }
+            } else if(e.Credentials is Rnwood.SmtpServer.Extensions.Auth.PlainAuthenticationCredentials plain)
+            {
+                if (plain.Password == "SomeSecret")
+                {
+                    e.AuthenticationResult = AuthenticationResult.Success;
+                }
+                else
+                {
+                    e.AuthenticationResult = AuthenticationResult.Failure;
+                }
+            } else if(e.Credentials is Rnwood.SmtpServer.Extensions.Auth.LoginAuthenticationCredentials login)
+            {
+
+                if (login.Password == "SomeSecret")
+                {
+                    e.AuthenticationResult = AuthenticationResult.Success;
+                }
+                else
+                {
+                    e.AuthenticationResult = AuthenticationResult.Failure;
+                }
+            }
+            
             return Task.CompletedTask;
         }
 
@@ -271,6 +302,11 @@ namespace Rnwood.Smtp4dev.Server
             Message message = new MessageConverter().ConvertAsync(e.Message).Result;
             log.Information("Message received. Client address {clientAddress}, From {messageFrom}, To {messageTo}, SecureConnection: {secure}.",
                 e.Message.Session.ClientAddress, e.Message.From, message.To, e.Message.SecureConnection);
+
+            if (!e.Message.Session.Authenticated)
+            {
+                throw new UnauthorizedAccessException("Client not authenticated");
+            }
             message.IsUnread = true;
 
             await taskQueue.QueueTask(() =>
