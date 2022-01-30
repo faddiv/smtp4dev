@@ -1,9 +1,14 @@
-﻿using System.Net;
+﻿using System.Collections.Generic;
+using System.Net;
 
 namespace Rnwood.Smtp4dev.Server
 {
     public class ServerOptions
     {
+        public ServerOptions()
+        {
+            AllowedLogins = new List<AllowedLogin>();
+        }
         public int Port { get; set; } = 25;
         public bool AllowRemoteConnections { get; set; } = true;
 
@@ -24,5 +29,7 @@ namespace Rnwood.Smtp4dev.Server
         public int? ImapPort { get; set; } = 143;
 
         public bool RecreateDb { get; set; }
+
+        public List<AllowedLogin> AllowedLogins { get; } = new List<AllowedLogin>();
     }
 }

@@ -175,45 +175,79 @@ namespace Rnwood.Smtp4dev.Server
 
         private Task OnAuthenticationCredentialsValidationRequired(object sender, AuthenticationCredentialsValidationEventArgs e)
         {
-            if(e.Credentials is Rnwood.SmtpServer.Extensions.Auth.CramMd5AuthenticationCredentials cram)
+            var allowedLogins = serverOptions.CurrentValue.AllowedLogins;
+            if (allowedLogins.Count == 0)
             {
-                if(cram.ValidateResponse("SomeSecret"))
-                {
-                    e.AuthenticationResult = AuthenticationResult.Success;
-                } else
-                {
-                    e.AuthenticationResult = AuthenticationResult.Failure;
-                }
-            } else if(e.Credentials is Rnwood.SmtpServer.Extensions.Auth.PlainAuthenticationCredentials plain)
-            {
-                if (plain.Password == "SomeSecret")
-                {
-                    e.AuthenticationResult = AuthenticationResult.Success;
-                }
-                else
-                {
-                    e.AuthenticationResult = AuthenticationResult.Failure;
-                }
-            } else if(e.Credentials is Rnwood.SmtpServer.Extensions.Auth.LoginAuthenticationCredentials login)
-            {
-
-                if (login.Password == "SomeSecret")
-                {
-                    e.AuthenticationResult = AuthenticationResult.Success;
-                }
-                else
-                {
-                    e.AuthenticationResult = AuthenticationResult.Failure;
-                }
+                log.Information("No allowed login added. Login succeed by default.");
+                e.AuthenticationResult = AuthenticationResult.Success;
+                return Task.CompletedTask;
             }
-            
+            log.Information("Login required. Authenticating credentials type {0}.", e.Credentials.GetType());
+            if (e.Credentials is SmtpServer.Extensions.Auth.CramMd5AuthenticationCredentials cram)
+            {
+                e.AuthenticationResult = 
+                    ValidateUserNameAndPassword(cram.Username, password => cram.ValidateResponse(password));
+            } else if(e.Credentials is SmtpServer.Extensions.Auth.PlainAuthenticationCredentials plain)
+            {
+                e.AuthenticationResult =
+                    ValidateUserNameAndPassword(plain.Username, plain.Password);
+            } else if(e.Credentials is SmtpServer.Extensions.Auth.LoginAuthenticationCredentials loginAuthentication)
+            {
+                e.AuthenticationResult =
+                    ValidateUserNameAndPassword(loginAuthentication.Username, loginAuthentication.Password);
+            }
+            else if (e.Credentials is SmtpServer.Extensions.Auth.UsernameAndPasswordAuthenticationCredentials usernameAndPassword)
+            {
+                e.AuthenticationResult =
+                    ValidateUserNameAndPassword(usernameAndPassword.Username, usernameAndPassword.Password);
+            }
+            else if (e.Credentials is SmtpServer.Extensions.Auth.AnonymousAuthenticationCredentials anonymous)
+            {
+                e.AuthenticationResult =
+                    ValidateUserNameAndPassword("anonymous", "");
+            } else
+            {
+                log.Error("Can't authenticate the sent credentials. This results failure by default. Credentials: {0}", e.Credentials);
+                e.AuthenticationResult = AuthenticationResult.Failure;
+            }
             return Task.CompletedTask;
+        }
+
+        private AuthenticationResult ValidateUserNameAndPassword(string username, string password)
+        {
+            return ValidateUserNameAndPassword(username, validPassword => validPassword == password);
+        }
+        private AuthenticationResult ValidateUserNameAndPassword(string username, Func<string, bool> isPasswordValidFunc)
+        {
+            var allowedLogins = serverOptions.CurrentValue.AllowedLogins;
+            var loginUser = allowedLogins.Find(allowedLogin => string.Equals(allowedLogin.UserName, username, StringComparison.OrdinalIgnoreCase));
+            if (loginUser == null)
+            {
+                log.Information("Authentication failed. Wrong user name.");
+                return AuthenticationResult.Failure;
+            }
+            if(isPasswordValidFunc(loginUser.Password))
+            {
+                log.Information("Authentication succeeded.");
+                return AuthenticationResult.Success;
+            } else
+            {
+                log.Information("Authentication failed. Wrong password.");
+                return AuthenticationResult.Failure;
+            }
         }
 
         private Task OnMessageCompleted(object sender, ConnectionEventArgs e)
         {
+
+            var allowedLogins = serverOptions.CurrentValue.AllowedLogins;
+            if (allowedLogins.Count == 0)
+            {
+                return Task.CompletedTask;
+            }
             if (!e.Connection.Session.Authenticated)
             {
+                log.Information("Client sent a message without authenticating. Send \"530 SMTP authentication is required.\" back.");
                 throw new SmtpServerException(new SmtpServer.SmtpResponse(530, "SMTP authentication is required."));
             }
             return Task.CompletedTask;
