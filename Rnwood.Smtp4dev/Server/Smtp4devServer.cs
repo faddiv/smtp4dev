@@ -65,6 +65,7 @@ namespace Rnwood.Smtp4dev.Server
                 serverOptionsValue.TlsMode == TlsMode.ImplicitTls ? cert : null,
                 serverOptionsValue.TlsMode == TlsMode.StartTls ? cert : null
             );
+            this.smtpServer.MessageCompletedEventHandler += OnMessageCompleted;
             this.smtpServer.MessageReceivedEventHandler += OnMessageReceived;
             this.smtpServer.SessionCompletedEventHandler += OnSessionCompleted;
             this.smtpServer.SessionStartedHandler += OnSessionStarted;
@@ -209,6 +210,15 @@ namespace Rnwood.Smtp4dev.Server
             return Task.CompletedTask;
         }
 
+        private Task OnMessageCompleted(object sender, ConnectionEventArgs e)
+        {
+            if (!e.Connection.Session.Authenticated)
+            {
+                throw new SmtpServerException(new SmtpServer.SmtpResponse(530, "SMTP authentication is required."));
+            }
+            return Task.CompletedTask;
+        }
+
 
         private readonly IOptionsMonitor<ServerOptions> serverOptions;
         private readonly IOptionsMonitor<RelayOptions> relayOptions;
@@ -303,10 +313,6 @@ namespace Rnwood.Smtp4dev.Server
             log.Information("Message received. Client address {clientAddress}, From {messageFrom}, To {messageTo}, SecureConnection: {secure}.",
                 e.Message.Session.ClientAddress, e.Message.From, message.To, e.Message.SecureConnection);
 
-            if (!e.Message.Session.Authenticated)
-            {
-                throw new UnauthorizedAccessException("Client not authenticated");
-            }
             message.IsUnread = true;
 
             await taskQueue.QueueTask(() =>
