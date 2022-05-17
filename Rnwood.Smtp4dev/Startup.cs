@@ -98,7 +98,7 @@ namespace Rnwood.Smtp4dev
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             ServerOptions serverOptions = Configuration.GetSection("ServerOptions").Get<ServerOptions>();
-
+            app.LogServerInformation();
             app.UseRouting();
 
             Action<IApplicationBuilder> configure = subdir =>

@@ -109,12 +109,20 @@ namespace Rnwood.Smtp4dev.Server
                 }
                 else if(serverOptions.CurrentValue.TlsCertificateLocation?.FindValue != null)
                 {
-                    //string storeName, StoreLocation storeLocation, X509FindType x509FindType, string findValue
+                    log.Debug("Try load certificate from store {StoreName} {StoreLocation} {X509FindType} {FindValue}",
+                        serverOptions.CurrentValue.TlsCertificateLocation.StoreName,
+                        serverOptions.CurrentValue.TlsCertificateLocation.StoreLocation,
+                        serverOptions.CurrentValue.TlsCertificateLocation.X509FindType,
+                        serverOptions.CurrentValue.TlsCertificateLocation.FindValue);
+
                     cert = CertificateHelper.LoadCertificateFromStore(
                         serverOptions.CurrentValue.TlsCertificateLocation.StoreName,
                         serverOptions.CurrentValue.TlsCertificateLocation.StoreLocation,
                         serverOptions.CurrentValue.TlsCertificateLocation.X509FindType,
                         serverOptions.CurrentValue.TlsCertificateLocation.FindValue);
+
+                    log.Information("Using certificate from store with Subject {SubjectName}, expiry {ExpiryDate}", cert.SubjectName.Name,
+                        cert.GetExpirationDateString());
                 } else
                 {
                     string pfxPath = Path.GetFullPath("selfsigned-certificate.pfx");
