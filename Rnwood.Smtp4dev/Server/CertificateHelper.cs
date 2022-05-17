@@ -30,6 +30,21 @@ namespace Rnwood.Smtp4dev.Server
             return new X509Certificate2(certificatePath, password);
         }
 
+        public static X509Certificate2 LoadCertificateFromStore(string storeName, StoreLocation storeLocation, X509FindType x509FindType, string findValue)
+        {
+            using var store = new X509Store(storeName, storeLocation);
+            store.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);
+            var certificates = store.Certificates.Find(x509FindType, findValue, false);
+            foreach (var cert in certificates)
+            {
+                if(cert.Verify())
+                {
+                    return cert;
+                }
+            }
+            return certificates.Count > 0 ? certificates[0] : null;
+        }
+
         /// <summary>
         /// This is a shortcut that assumes valid PEM
         /// -----BEGIN words-----\r\nbase64\r\n-----END words-----

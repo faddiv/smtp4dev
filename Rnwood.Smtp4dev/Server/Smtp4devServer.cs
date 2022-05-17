@@ -107,7 +107,15 @@ namespace Rnwood.Smtp4dev.Server
                     log.Information("Using provided certificate with Subject {SubjectName}, expiry {ExpiryDate}", cert.SubjectName.Name,
                         cert.GetExpirationDateString());
                 }
-                else
+                else if(serverOptions.CurrentValue.TlsCertificateLocation?.FindValue != null)
+                {
+                    //string storeName, StoreLocation storeLocation, X509FindType x509FindType, string findValue
+                    cert = CertificateHelper.LoadCertificateFromStore(
+                        serverOptions.CurrentValue.TlsCertificateLocation.StoreName,
+                        serverOptions.CurrentValue.TlsCertificateLocation.StoreLocation,
+                        serverOptions.CurrentValue.TlsCertificateLocation.X509FindType,
+                        serverOptions.CurrentValue.TlsCertificateLocation.FindValue);
+                } else
                 {
                     string pfxPath = Path.GetFullPath("selfsigned-certificate.pfx");
                     string cerPath = Path.GetFullPath("selfsigned-certificate.cer");
